@@ -1,0 +1,11 @@
+[package]
+name = "fluent-js-entries"
+version = "0.1.0"
+authors = ["Zibi Braniecki <gandalf@mozilla.com>"]
+
+[dependencies]
+fluent = { path = "../fluent-rs" }
+getopts = "0.2.14"
+serde = "0.8.21"
+serde_json = "0.8.4"
+serde_derive = "0.8.21"
