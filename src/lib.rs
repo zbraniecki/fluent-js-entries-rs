@@ -8,9 +8,11 @@ extern crate serde_derive;
 extern crate fluent;
 
 use self::serde::ser::{Serialize, Serializer};
+use self::serde::de::{Deserialize, Deserializer, Visitor, MapVisitor, SeqVisitor, Error};
+use self::serde::de::value::{ValueDeserializer, SeqVisitorDeserializer, MapVisitorDeserializer};
 use fluent::syntax::ast;
 
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq)]
 pub struct Resource(pub Vec<Entry>);
 
 impl Serialize for Resource {
@@ -30,10 +32,66 @@ impl Serialize for Resource {
     }
 }
 
+impl Deserialize for Resource {
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
+        where D: Deserializer
+    {
+        struct FieldVisitor;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+        impl Visitor for FieldVisitor {
+            type Value = Resource;
+
+            fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error>
+                where V: MapVisitor
+            {
+                let mut entries = vec![];
+
+                while let Some(key) = visitor.visit_key()? {
+                    let value = visitor.visit_value()?;
+                    let mut elements = vec![];
+                    elements.push(PatternElement::Text(value));
+                    let pattern = Pattern { elements: elements };
+                    entries.push(Entry::Message(Message {
+                        id: key,
+                        value: Some(pattern),
+                        traits: None,
+                    }));
+                }
+                visitor.end()?;
+                Ok(Resource(entries))
+            }
+        }
+
+        deserializer.deserialize_struct_field(FieldVisitor)
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize)]
 pub enum Entry {
     Message(Message),
+}
+
+impl Deserialize for Entry {
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
+        where D: Deserializer
+    {
+        struct FieldVisitor;
+
+        impl Visitor for FieldVisitor {
+            type Value = Entry;
+
+            fn visit_str<E>(&mut self, v: &str) -> Result<Self::Value, E>
+                where E: Error
+            {
+                Ok(Entry::Message(Message {
+                    id: String::from("key1"),
+                    value: None,
+                    traits: None,
+                }))
+            }
+        }
+        deserializer.deserialize_struct_field(FieldVisitor)
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
